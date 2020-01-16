@@ -10,7 +10,7 @@ public class GravityBody
     float groundHitBuffer;
 
     Transform transform;
-    Orbision orbision;
+    public Orbision orbision;
     public Rigidbody rb;
     float mass;
     float timeStep = 1;
@@ -53,6 +53,8 @@ public class GravityBody
         groundHitBuffer = gravitySource.groundHitBuffer;
         attractingPoint = gravitySource.transform;
         gravitySource.AddGravityObject(this);
+
+        orbision = Orbision.Vector3ToOrbision(transform.position);
     }
 
     internal void Attract(float gravityStrength)
@@ -61,29 +63,17 @@ public class GravityBody
 
         if (!isWeightless)
         {
-            Vector3 gravityForce = WeightedInvertedGravityNormal() * gravityStrength;
+            Vector3 gravityForce = WeightedGravityNormal() * gravityStrength;
             rb.AddForce(gravityForce);
         }
     }
 
     void AlignWithGravityNormal()
     {
-        transform.rotation = Quaternion.FromToRotation(transform.up, InvertedGravityNormal()) * transform.rotation;
+        transform.rotation = Quaternion.FromToRotation(transform.up, orbision.up) * transform.rotation;
     }
 
-    Vector3 InvertedGravityNormal()
-    {
-        Debug.DrawLine(transform.position, attractingPoint.position, Color.black);
-        return (transform.position - attractingPoint.position).normalized;
-    }
-
-    Vector3 GravityNormal()
-    {
-        Debug.DrawLine(transform.position, attractingPoint.position);
-        return (attractingPoint.position - transform.position).normalized;
-    }
-
-    Vector3 WeightedInvertedGravityNormal()
+    Vector3 WeightedGravityNormal()
     {
         timeStep += Time.deltaTime;
         if (OnGround())
@@ -91,13 +81,15 @@ public class GravityBody
             timeStep = 1;
         }
 
-        return InvertedGravityNormal() * mass * timeStep;
+        return orbision.up * mass * timeStep;
     }
 
     bool OnGround()
     {
-        Debug.DrawRay(transform.position, GravityNormal() * 10, Color.green);
-        if (Physics.Raycast(transform.position, GravityNormal(), out RaycastHit hit, 10))
+        Debug.DrawRay(transform.position, orbision.up * 10, Color.green);
+        Debug.DrawRay(transform.position, orbision.right * 10, Color.red);
+        Debug.DrawRay(transform.position, orbision.forward * 10, Color.blue);
+        if (Physics.Raycast(transform.position, -orbision.up, out RaycastHit hit, 10))
         {
             return hit.distance <= groundHitBuffer;
         }
@@ -107,53 +99,45 @@ public class GravityBody
         }
     }
 
-    public float HeightFromPlanet()
-    {
-        return Vector3.Distance(transform.position, attractingPoint.position);
-    }
-
     public void Boost(float jumpPower)
     {
         if (OnGround())
         {
             Debug.Log("Boosting");
             rb.AddForce(transform.up * jumpPower / mass);
+            orbision = Orbision.Vector3ToOrbision(rb.position);
         }
-    }
-
-    public void Orbit(Vector3 deltaMove)
-    {
-        //deltaMove.y = 0;
-        moveAmount = Vector3.SmoothDamp(moveAmount, deltaMove, ref smoothMoveVelocity, .15f);
-
-        rb.MovePosition(rb.position + transform.TransformDirection(moveAmount) * Time.fixedDeltaTime);
     }
 
     public void Orbit(Vector2 deltaMove)
     {
-        Vector3 targetMoveAmount = new Vector3(deltaMove.x, 0, deltaMove.y);
-        moveAmount = Vector3.SmoothDamp(moveAmount, targetMoveAmount, ref smoothMoveVelocity, .15f);
+        AlignWithGravityNormal();
+        Orbision newOrbision = new Orbision(orbision);
+        newOrbision.RotateAroundAxis(-transform.forward, deltaMove.x);
+        newOrbision.RotateAroundAxis(transform.right, deltaMove.y);
+        newOrbision -= orbision;
 
-        rb.MovePosition(rb.position + transform.TransformDirection(moveAmount) * Time.fixedDeltaTime);
+        rb.MovePosition(rb.position + newOrbision.vector3Position);
+        orbision = Orbision.Vector3ToOrbision(rb.position);
     }
 
-    public void Orbit(float deltaX, float deltaZ)
+    public void Elevate(float deltaH)
     {
-        Vector3 targetMoveAmount = new Vector3(deltaX, 0, deltaZ);
-        moveAmount = Vector3.SmoothDamp(moveAmount, targetMoveAmount, ref smoothMoveVelocity, .15f);
+        AlignWithGravityNormal();
 
-        rb.MovePosition(rb.position + transform.TransformDirection(moveAmount) * Time.fixedDeltaTime);
-    }
-
-    public void Elevate(float deltaW)
-    {
-        //AlignWithGravityNormal();
-        rb.MovePosition(rb.position + (InvertedGravityNormal() * deltaW * Time.fixedDeltaTime));
+        rb.MovePosition(rb.position + orbision.up * deltaH * Time.fixedDeltaTime);
+        orbision = Orbision.Vector3ToOrbision(rb.position);
     }
 
     public void Spin(float angle)
     {
         AlignWithGravityNormal();
-        transform.Rotate(Vector3.up * angle * Time.deltaTime);
+        transform.RotateAround(orbision.hOrigin, orbision.up, angle * Time.deltaTime);
+    }
+
+    public void Move(Orbision orbision)
+    {
+        Elevate(orbision.h);
+        Orbit(orbision.vector3Position - this.orbision.vector3Position);
     }
 }

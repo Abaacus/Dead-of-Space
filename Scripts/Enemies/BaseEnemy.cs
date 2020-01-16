@@ -7,11 +7,11 @@ enum EnemyState { passive, targeting, dead };
 [RequireComponent(typeof(Rigidbody))]
 public class BaseEnemy : MonoBehaviour
 {
-   public static PlanetData planetData;
+    public static PlanetData planetData;
 
     Transform player;
     EnemyState state;
-    internal GravityBody gravityBody;
+    internal GravityBody gb;
 
     public float detectionRadius;
     public float rotSpeed = 45;
@@ -23,7 +23,7 @@ public class BaseEnemy : MonoBehaviour
     {
         player = Player.instance.transform;
     }
-    
+
     void FixedUpdate()
     {
         UpdatePlayerDistance();

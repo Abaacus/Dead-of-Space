@@ -58,8 +58,8 @@ public class TerrainPlacer : MonoBehaviour
         };
 
         CreateVertexData(out int[,,] vertexData);
-        SaveVertexData(vertexData);
         Debug.Log("Vertex Data Created in " + (Time.realtimeSinceStartup - startTime) + " seconds.");
+        SaveVertexData(vertexData);
 
         InitializeMeshData(vertexData);
         Debug.Log("Cubes Created in " + (Time.realtimeSinceStartup - startTime) + " seconds.");
@@ -149,7 +149,7 @@ public class TerrainPlacer : MonoBehaviour
 
         GameObject meshObj = new GameObject("Chunk [" + chunkOrigin.x + ", " + chunkOrigin.y + ", " + chunkOrigin.z + "]");
         meshObj.transform.parent = chunkParent;
-        meshObj.transform.position = chunkOrigin;
+        meshObj.transform.position = chunkOrigin - new Vector3(size.x / 2, size.z / 2, size.z / 2);
 
         Vector3[] meshVertices = new Vector3[8 * chunkSize.x * chunkSize.y * chunkSize.z];
         int[] meshTriangles = new int[6 * meshVertices.Length];

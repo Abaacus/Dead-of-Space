@@ -27,20 +27,25 @@ public class Player : MonoBehaviour
     Transform cam;
     float verticalLookRotation;
 
-    public GravityBody gravityBody;
+    public GravityBody gb;
     [SerializeField]
     float mass = 1f;
     [SerializeField]
     float jumpPower = 1f;
 
+    public BaseGun gun;
+    bool frame2;
+
     void Start()
     {
-        gravityBody = new GravityBody(GetComponent<Rigidbody>(), mass);
+        gb = new GravityBody(GetComponent<Rigidbody>(), mass);
+        gun = GetComponentInChildren<BaseGun>();
+        frame2 = true;
     }
 
     void Update()
     {
-        gravityBody.Spin(Input.GetAxis("Mouse X") * mouseSensitivityX);
+        gb.Spin(Input.GetAxis("Mouse X") * mouseSensitivityX);
 
         verticalLookRotation += Input.GetAxis("Mouse Y") * mouseSensitivityY * Time.deltaTime;
         verticalLookRotation = Mathf.Clamp(verticalLookRotation, -verticalClampAngle, verticalClampAngle);
@@ -48,12 +53,22 @@ public class Player : MonoBehaviour
 
         if (Input.GetButton("Jump"))
         {
-            gravityBody.Boost(jumpPower);
+            gb.Boost(jumpPower);
+        }
+
+        if (Input.GetButton("Fire1"))
+        {
+            gun.FireGun(cam.transform.forward);
         }
     }
 
     void FixedUpdate()
     {
-        gravityBody.Orbit(new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical")).normalized * speed);
+        if (frame2)
+        {
+            gb.Orbit(new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized * speed);
+        }
+        
+        frame2 = !frame2;
     }
 }

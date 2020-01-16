@@ -1,61 +1,130 @@
-﻿using System.Reflection;
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/* while unity has a vector3 system to represent positions of objects, this was insufficient for my purposes
+ * 
+ */
+
 public class Orbision
 {
-    public float h;
+    #region Properties
+
+    public float h; // mechanics break if this is less than 1
     public float i;
     public float j;
     public float k;
 
-    public Vector3 direction
+    public Vector3 up
     {
         get { return new Vector3(i, j, k); }
     }
 
-    public static Vector3 hOrigin
+    public Vector3 right
     {
-        get { return hOrigin; }
+        get { return new Vector3(j, k, i); }
+    }
+
+    public Vector3 forward
+    {
+        get { return new Vector3(k, i, j); }
+    }
+
+    public Vector3 vector3Position
+    {
+        get{ return up * h; }
+    }
+
+    public static List<Vector3> hOrigins = new List<Vector3>();
+    Vector3 _hOrigin;
+    public Vector3 hOrigin
+    {
+        get => _hOrigin;
 
         set
         {
+            AddOrigin(value);
+
             if (value != hOrigin)
             {
-                Vector3 rawPos = OrbisionToVector3();
-                hOrigin = value;
-                this = Vector3ToOrbision(rawPos);
+                Vector3 rawPosition = vector3Position;
+                _hOrigin = value;
+                Orbision newOrbision = Vector3ToOrbision(rawPosition);
+
+                h = newOrbision.h;
+                i = newOrbision.i;
+                j = newOrbision.j;
+                k = newOrbision.k;
             }
         }
     }
+
+    #endregion
+
+    #region Constructors
 
     public Orbision()
     {
 
     }
 
-    public Orbision(float i, float j, float k)
+    public Orbision(float i, float j, float k, int originIndex = 0)
     {
+        h = 0;
         this.i = i;
         this.j = j;
         this.k = k;
+        hOrigin = hOrigins[originIndex];
     }
 
-    public Orbision(float h, float i, float j, float k) : this(i, j, k)
+    public Orbision(float h, float i, float j, float k, int originIndex = 0) : this(i, j, k, originIndex)
     {
         this.h = h;
     }
 
+    public Orbision(Vector3 direction, int originIndex = 0) : this(direction.x, direction.y, direction.z, originIndex)
+    {
+    }
+
+    public Orbision(float h, Vector3 direction, int originIndex = 0) : this(direction, originIndex)
+    {
+        this.h = h;
+    }
+
+    public Orbision(Orbision orbision) : this(orbision.h, orbision.i, orbision.j, orbision.k, hOrigins.IndexOf(orbision.hOrigin))
+    {
+
+    }
+
+    #endregion
+
+    #region Children Methods
+
+    public override string ToString()
+    {
+        return "Orbision (" + h + "|" + i + ", " + j + ", " + k + ")";
+    }
+
+    public void RotateAroundAxis(Vector3 axis, float angle)
+    {
+        Vector3 newDir = Quaternion.AngleAxis(angle, axis) * vector3Position;
+        newDir.Normalize();
+        i = newDir.x;
+        j = newDir.y;
+        k = newDir.z;
+    }
+
+    #endregion
+
     #region Static Methods
 
-    public static Orbision Vector3ToOrbision(Vector3 vector3)
+    public static Orbision Vector3ToOrbision(Vector3 vector3, int originIndex = 0)
     {
-        Vector3 dirToPoint = (vector3 - hOrigin).normalized;
+        Vector3 dirToPoint = (vector3 - hOrigins[originIndex]).normalized;
 
         Orbision orbision = new Orbision
         {
-            h = Vector3.Distance(hOrigin, vector3),
+            h = Vector3.Distance(hOrigins[originIndex], vector3),
             i = dirToPoint.x,
             j = dirToPoint.y,
             k = dirToPoint.z
@@ -64,29 +133,49 @@ public class Orbision
         return orbision;
     }
 
-    public static Vector3 OrbisionToVector3()
+    public static void AddOrigin(Vector3 newOrigin)
     {
-        return new Vector3(i, j, k) * h;
+        bool originAdded = false;
+        foreach (Vector3 hOrigin in hOrigins)
+        {
+            if (hOrigin == newOrigin)
+            {
+                originAdded = true;
+            }
+        }
+
+        if (!originAdded)
+        { hOrigins.Add(newOrigin); }
     }
 
-    void RecalculateOrbisionConstants()
-    {
-        direction = new Vector3(i, j, k);
-    }
-    
     #endregion
 
     #region Operator
 
     public static Orbision operator +(Orbision a, Orbision b)
     {
-        return new Orbision
+        Vector3 dir = new Vector3
         {
-            h = a.h + b.h,
-            i = a.i + b.i,
-            j = a.j + b.j,
-            k = a.k + b.k,
+            x = a.i + b.i,
+            y = a.j + b.j,
+            z = a.k + b.k
         };
+        Orbision ab = new Orbision(Mathf.Clamp(a.h + b.h, 1, Mathf.Infinity), dir.normalized);
+        return ab;
     }
+
+    public static Orbision operator -(Orbision a, Orbision b)
+    {
+        Vector3 dir = new Vector3
+        {
+            x = a.i - b.i,
+            y = a.j - b.j,
+            z = a.k - b.k
+        };
+
+        Orbision ab = new Orbision(Mathf.Clamp(a.h - b.h, 1, Mathf.Infinity), dir.normalized);
+        return ab;
+    }
+
     #endregion
 }

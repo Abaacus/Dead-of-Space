@@ -15,7 +15,7 @@ public class GravitySource : MonoBehaviour
         instance = this;
 
         gravityBodies = new List<GravityBody>();
-        Orbision.hOrigin = transform.position;
+        Orbision.AddOrigin(transform.position);
     }
 
     [SerializeField]
@@ -37,5 +37,10 @@ public class GravitySource : MonoBehaviour
     public void AddGravityObject(GravityBody gravityBody)
     {
         gravityBodies.Add(gravityBody);
+    }
+
+    public void RemoveGravityObject(GravityBody gravityBody)
+    {
+        gravityBodies.Remove(gravityBody);
     }
 }

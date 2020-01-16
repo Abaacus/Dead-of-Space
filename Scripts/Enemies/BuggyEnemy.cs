@@ -14,18 +14,18 @@ public class BuggyEnemy : BaseEnemy
     new void Start()
     {
         base.Start();
-        gravityBody = new GravityBody(GetComponent<Rigidbody>());
+        gb = new GravityBody(GetComponent<Rigidbody>());
         targetHeight = Random.Range(planetData.coreRadius + minHeight, planetData.planetRadius + heightOffset);
     }
 
     public override void Wander()
     {
-        if (Mathf.Abs(targetHeight - gravityBody.HeightFromPlanet()) <= 0.2f)
+        if (Mathf.Abs(targetHeight - gb.orbision.h) <= 0.2f)
         {
             targetHeight = Random.Range(planetData.coreRadius + heightOffset, planetData.planetRadius + heightOffset);
         }
 
-        float deltaY = (targetHeight - gravityBody.HeightFromPlanet()) * verticalSpeed;
+        float deltaY = (targetHeight - gb.orbision.h) * verticalSpeed;
         if (deltaY <= 2f)
         {
             deltaY += BobNoise(Time.fixedTime);
@@ -39,7 +39,7 @@ public class BuggyEnemy : BaseEnemy
         {
             Vector3 collisionAvoidDir = ObstacleRays();
             Debug.DrawRay(transform.position, collisionAvoidDir, Color.red);
-            Vector3 planetDirection = GravitySource.instance.ConvertDirectionToPlanetDirection(collisionAvoidDir);
+            Vector3 planetDirection = -gb.orbision.up;
             Debug.DrawRay(transform.position, new Vector2(planetDirection.x, planetDirection.z), Color.green);
 
             //gravityBody.Elevate(planetDirection.y);
