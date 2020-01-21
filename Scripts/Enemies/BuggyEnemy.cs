@@ -30,16 +30,16 @@ public class BuggyEnemy : BaseEnemy
         {
             deltaY += BobNoise(Time.fixedTime);
         }
-        //gravityBody.Spin(BobNoise(2 * Time.fixedTime) * rotSpeed);
+        gb.Spin(BobNoise(2 * Time.fixedTime) * rotSpeed);
 
-        //gravityBody.Elevate(deltaY);
-        //gravityBody.Orbit(0, moveSpeed);
+        gb.Elevate(deltaY);
+        gb.Orbit(0, moveSpeed);
 
         if (true)//IsHeadingForCollision())
         {
             Vector3 collisionAvoidDir = ObstacleRays();
             Debug.DrawRay(transform.position, collisionAvoidDir, Color.red);
-            Vector3 planetDirection = -gb.orbision.up;
+            Vector3 planetDirection = -gb.orbision.localUp;
             Debug.DrawRay(transform.position, new Vector2(planetDirection.x, planetDirection.z), Color.green);
 
             //gravityBody.Elevate(planetDirection.y);

@@ -17,7 +17,7 @@ public class Star : MonoBehaviour   // controlls the star the planet orbits arou
         direction = new Vector2(Random.Range(-1f, 1f), Random.Range(-1f, 1f)).normalized;   // creates a random circle for the star to orbit around the planet
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
         gb.Orbit(direction * Time.fixedDeltaTime * speed);  // orbits the star around the center
     }

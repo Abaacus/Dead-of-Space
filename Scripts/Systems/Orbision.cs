@@ -15,24 +15,24 @@ public class Orbision
     public float j;
     public float k;
 
-    public Vector3 up
+    public Vector3 localUp
     {
         get { return new Vector3(i, j, k); }
     }
 
-    public Vector3 right
+    public Vector3 localRight
     {
         get { return new Vector3(j, k, i); }
     }
 
-    public Vector3 forward
+    public Vector3 localForward
     {
         get { return new Vector3(k, i, j); }
     }
 
     public Vector3 vector3Position
     {
-        get{ return up * h; }
+        get{ return localUp * h; }
     }
 
     public static List<Vector3> hOrigins = new List<Vector3>();
@@ -57,6 +57,25 @@ public class Orbision
                 k = newOrbision.k;
             }
         }
+    }
+
+    #endregion
+
+    #region Static Properties
+
+    public static Orbision up
+    {
+        get { return new Orbision(0, 1, 0); }
+    }
+
+    public static Orbision right
+    {
+        get { return new Orbision(1, 0, 0); }
+    }
+
+    public static Orbision forward
+    {
+        get { return new Orbision(0, 0, 1); }
     }
 
     #endregion
@@ -160,7 +179,16 @@ public class Orbision
             y = a.j + b.j,
             z = a.k + b.k
         };
-        Orbision ab = new Orbision(Mathf.Clamp(a.h + b.h, 1, Mathf.Infinity), dir.normalized);
+
+        float abH = a.h + b.h;
+
+        int hSign = 1;
+        if (Mathf.Abs(abH) >= Mathf.Epsilon)
+        {
+            hSign = (int)(abH / Mathf.Abs(abH));
+        }
+
+        Orbision ab = new Orbision(hSign * Mathf.Clamp(abH, 1, Mathf.Infinity), dir.normalized);
         return ab;
     }
 
@@ -173,7 +201,15 @@ public class Orbision
             z = a.k - b.k
         };
 
-        Orbision ab = new Orbision(Mathf.Clamp(a.h - b.h, 1, Mathf.Infinity), dir.normalized);
+        float abH = a.h - b.h;
+
+        int hSign = 1;
+        if (Mathf.Abs(abH) >= Mathf.Epsilon)
+        {
+            hSign = (int)(abH / Mathf.Abs(abH));
+        }
+
+        Orbision ab = new Orbision(hSign * Mathf.Clamp(abH, 1, Mathf.Infinity), dir.normalized);
         return ab;
     }
 

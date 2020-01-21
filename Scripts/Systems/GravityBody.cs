@@ -70,7 +70,11 @@ public class GravityBody
 
     void AlignWithGravityNormal()
     {
-        transform.rotation = Quaternion.FromToRotation(transform.up, orbision.up) * transform.rotation;
+        transform.rotation = Quaternion.FromToRotation(transform.up, orbision.localUp) * transform.rotation;
+
+        Debug.DrawRay(transform.position, orbision.localUp * 10, Color.green);
+        Debug.DrawRay(transform.position, orbision.localRight * 10, Color.red);
+        Debug.DrawRay(transform.position, orbision.localForward * 10, Color.blue);
     }
 
     Vector3 WeightedGravityNormal()
@@ -81,15 +85,12 @@ public class GravityBody
             timeStep = 1;
         }
 
-        return orbision.up * mass * timeStep;
+        return orbision.localUp * mass * timeStep;
     }
 
     bool OnGround()
     {
-        Debug.DrawRay(transform.position, orbision.up * 10, Color.green);
-        Debug.DrawRay(transform.position, orbision.right * 10, Color.red);
-        Debug.DrawRay(transform.position, orbision.forward * 10, Color.blue);
-        if (Physics.Raycast(transform.position, -orbision.up, out RaycastHit hit, 10))
+        if (Physics.Raycast(transform.position, -orbision.localUp, out RaycastHit hit, 10))
         {
             return hit.distance <= groundHitBuffer;
         }
@@ -112,32 +113,51 @@ public class GravityBody
     public void Orbit(Vector2 deltaMove)
     {
         AlignWithGravityNormal();
-        Orbision newOrbision = new Orbision(orbision);
+
+        /*Orbision newOrbision = new Orbision(orbision);
         newOrbision.RotateAroundAxis(-transform.forward, deltaMove.x);
         newOrbision.RotateAroundAxis(transform.right, deltaMove.y);
+        Debug.DrawLine(orbision.hOrigin, orbision.vector3Position, Color.magenta);
+        newOrbision -= orbision;
+        Debug.DrawLine(orbision.hOrigin, orbision.vector3Position, Color.magenta);
+        rb.MovePosition(rb.position + newOrbision.vector3Position);*/
+
+        moveAmount = Vector3.SmoothDamp(moveAmount, new Vector3(deltaMove.x, 0, deltaMove.y) * orbision.h, ref smoothMoveVelocity, .15f);
+        
+    }
+
+    public void Orbit(float deltaX, float deltaZ)
+    {
+        AlignWithGravityNormal();
+
+        /*Orbision newOrbision = new Orbision(orbision);
+        newOrbision.RotateAroundAxis(-transform.forward, deltaX);
+        newOrbision.RotateAroundAxis(transform.right, deltaZ);
         newOrbision -= orbision;
 
         rb.MovePosition(rb.position + newOrbision.vector3Position);
-        orbision = Orbision.Vector3ToOrbision(rb.position);
+        orbision = Orbision.Vector3ToOrbision(rb.position);*/
+
+        moveAmount = Vector3.SmoothDamp(moveAmount, new Vector3(deltaX, 0, deltaZ) * orbision.h, ref smoothMoveVelocity, .15f);
     }
 
     public void Elevate(float deltaH)
     {
         AlignWithGravityNormal();
 
-        rb.MovePosition(rb.position + orbision.up * deltaH * Time.fixedDeltaTime);
+        //rb.MovePosition(rb.position + orbision.localUp * deltaH * Time.fixedDeltaTime);
         orbision = Orbision.Vector3ToOrbision(rb.position);
     }
 
     public void Spin(float angle)
     {
         AlignWithGravityNormal();
-        transform.RotateAround(orbision.hOrigin, orbision.up, angle * Time.deltaTime);
+        transform.RotateAround(orbision.hOrigin, orbision.localUp, angle * Time.deltaTime);
     }
 
-    public void Move(Orbision orbision)
+    public void Move()
     {
-        Elevate(orbision.h);
-        Orbit(orbision.vector3Position - this.orbision.vector3Position);
+        rb.MovePosition(rb.position + (transform.TransformDirection(moveAmount) * Time.fixedDeltaTime));
+        orbision = Orbision.Vector3ToOrbision(rb.position);
     }
 }

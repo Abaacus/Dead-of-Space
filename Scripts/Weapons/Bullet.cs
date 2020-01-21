@@ -18,13 +18,13 @@ public class Bullet : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         gb = new GravityBody(rb, mass);
+        StartCoroutine(BulletDecay());
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
         gb.Orbit(Vector2.up * speed);
-        //gb.Elevate(dir.h);
-        StartCoroutine(BulletDecay());
+        gb.Elevate(dir.h);
     }
 
     public void SetVelocity(Orbision dir, float speed)
@@ -57,6 +57,6 @@ public class Bullet : MonoBehaviour
     IEnumerator BulletDecay()   // coroutine that destroys bullet if it's been alive for too long
     {
         yield return new WaitForSeconds(lifeSpan);  // waits for the length of time the bullet should exist for...
-        //Hit(null);  // return that the bullet has hit nothing
+        Hit(null);  // return that the bullet has hit nothing
     }
 }

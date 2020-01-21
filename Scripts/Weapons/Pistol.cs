@@ -8,5 +8,6 @@ public class Pistol : BaseGun
     {
         Bullet bullet = Instantiate(bulletPrefab, bulletSpawnPoint.position, transform.rotation).GetComponent<Bullet>();
         bullet.SetVelocity(direction, bulletSpeed);
+        Debug.Log(direction.h);
     }
 }

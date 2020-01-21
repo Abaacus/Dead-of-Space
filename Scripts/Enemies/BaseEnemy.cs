@@ -69,6 +69,10 @@ public class BaseEnemy : MonoBehaviour
             state = EnemyState.targeting;
             target = player.position;
         }
+        else
+        {
+            state = EnemyState.passive;
+        }
     }
 
     public void OnDrawGizmosSelected()

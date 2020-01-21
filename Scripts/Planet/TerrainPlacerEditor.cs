@@ -27,6 +27,13 @@ public class TerrainPlacerEditor : Editor
         {
             terrainPlacer.SaveVertexData();
         }
+
+        if (GUILayout.Button("Save Mesh"))
+        {
+            AssetDatabase.CreateAsset( terrainPlacer.meshFilters[0].mesh, "Assets/Mesh.fbx");
+            AssetDatabase.SaveAssets();
+        }
+
         GUILayout.EndHorizontal();
 
         using (var check = new EditorGUI.ChangeCheckScope())

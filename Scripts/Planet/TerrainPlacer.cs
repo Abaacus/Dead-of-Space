@@ -21,6 +21,7 @@ public class TerrainPlacer : MonoBehaviour
     [Range(0, 1)]
     public float placeThreshold = 0.5f;
     public float noiseScale = 0.1f;
+    float[,,] noise;
 
     [SerializeField]
     Transform chunkParent;
@@ -31,7 +32,10 @@ public class TerrainPlacer : MonoBehaviour
     [SerializeField]
     Material material;
     [SerializeField]
-    MeshFilter[] meshFilters;
+    public MeshFilter[] meshFilters;
+
+    bool vertexDataCreated;
+    bool meshCreated;
 
     private void Awake()
     {
@@ -40,11 +44,12 @@ public class TerrainPlacer : MonoBehaviour
 
     public void GenerateNewTerrain()
     {
+        StopAllCoroutines();
         ClearTerrain();
-        GenerateTerrain();
+        StartCoroutine(GenerateTerrain());
     }
 
-    void GenerateTerrain()
+    IEnumerator GenerateTerrain()
     {
         float startTime = Time.realtimeSinceStartup;
 
@@ -57,11 +62,14 @@ public class TerrainPlacer : MonoBehaviour
             z = Random.Range(0, 1000f)
         };
 
-        CreateVertexData(out int[,,] vertexData);
+        StartCoroutine(CreateVertexData());
+        yield return new WaitForEndOfFrame();
         Debug.Log("Vertex Data Created in " + (Time.realtimeSinceStartup - startTime) + " seconds.");
-        SaveVertexData(vertexData);
-
-        InitializeMeshData(vertexData);
+        SaveVertexData(noise);
+        yield return new WaitUntil(() => vertexDataCreated);
+        StartCoroutine(InitializeMeshData());
+        yield return new WaitForEndOfFrame();
+        yield return new WaitUntil(() => meshCreated);
         Debug.Log("Cubes Created in " + (Time.realtimeSinceStartup - startTime) + " seconds.");
 
         Debug.Log("Loaded in " + (Time.realtimeSinceStartup - startTime) + " seconds.");
@@ -84,69 +92,71 @@ public class TerrainPlacer : MonoBehaviour
 
     public void SaveVertexData()
     {
-        CreateVertexData(out int[,,] vertexData);
-        BaseEnemy.planetData = new PlanetData(vertexData, planetRadius, coreRadius);
+        StartCoroutine(CreateVertexData());
+        BaseEnemy.planetData = new PlanetData(noise, planetRadius, coreRadius);
         Debug.Log("Planet data saved");
     }
 
-    public void SaveVertexData(int[,,] vertexData)
+    public void SaveVertexData(float[,,] vertexData)
     {
         BaseEnemy.planetData = new PlanetData(vertexData, planetRadius, coreRadius);
         Debug.Log("Planet data saved");
     }
 
-    int[,,] CreateVertexData(out int[,,] vertexData)
+    IEnumerator CreateVertexData()
     {
+        vertexDataCreated = false;
         scaledSize = size * resolution;
 
         Vector3 planetOrigin = new Vector3(scaledSize.x, scaledSize.y, scaledSize.z) / 2;
-        vertexData = new int[scaledSize.x + 1, scaledSize.y + 1, scaledSize.z + 1];
+        noise = new float[scaledSize.x + 1, scaledSize.y + 1, scaledSize.z + 1];
         for (int x = 0; x <= scaledSize.x; x++)
         {
             for (int y = 0; y <= scaledSize.y; y++)
             {
                 for (int z = 0; z <= scaledSize.z; z++)
                 {
-                    if (Noise(x, y, z) >= placeThreshold && Mathf.Abs(Vector3.Distance(new Vector3(x, y, z), planetOrigin)) < planetRadius)
-                    {
-                        vertexData[x, y, z] = 1;
-                    }
-
-                    if (Mathf.Abs(Vector3.Distance(new Vector3(x, y, z), planetOrigin)) < coreRadius)
-                    {
-                        vertexData[x, y, z] = 1;
-                    }
+                    noise[x, y, z] = Noise(x, y, z, Vector3.Distance(new Vector3(x, y, z), planetOrigin));
                 }
             }
         }
 
-        return vertexData;
+        yield return new WaitForEndOfFrame();
+        vertexDataCreated = true;
     }
 
-    MeshFilter[] InitializeMeshData(int[,,] vertices)
+    IEnumerator InitializeMeshData()
     {
+        meshCreated = false;
         Vector3Int numChunks = new Vector3Int(Mathf.CeilToInt(scaledSize.x / chunkSize.x), Mathf.CeilToInt(scaledSize.y / chunkSize.y), Mathf.CeilToInt(scaledSize.z / chunkSize.z));
         meshFilters = new MeshFilter[numChunks.x * numChunks.y * numChunks.z];
 
-        int meshIndex = 0;
+        int meshIndex = -1;
         for (int x = 0; x < numChunks.x; x++)
         {
             for (int y = 0; y < numChunks.y; y++)
             {
                 for (int z = 0; z < numChunks.z; z++)
                 {
-                    LoadChunkMesh(new Vector3Int(x * chunkSize.x, y * chunkSize.y, z * chunkSize.z), vertices, meshIndex);
                     meshIndex++;
+                    if (meshIndex == meshFilters.Length - 1)
+                    {
+                        yield return StartCoroutine(LoadChunkMesh(new Vector3Int(x * chunkSize.x, y * chunkSize.y, z * chunkSize.z), meshIndex));
+                    }
+                    else
+                    {
+                        StartCoroutine(LoadChunkMesh(new Vector3Int(x * chunkSize.x, y * chunkSize.y, z * chunkSize.z), meshIndex));
+                    }
                 }
             }
         }
 
-        return meshFilters;
+        
+        meshCreated = true;
     }
 
-    Mesh LoadChunkMesh(Vector3Int chunkOrigin, int[,,] vertexData, int meshIndex)
+    IEnumerator LoadChunkMesh(Vector3Int chunkOrigin, int meshIndex)
     {
-
         GameObject meshObj = new GameObject("Chunk [" + chunkOrigin.x + ", " + chunkOrigin.y + ", " + chunkOrigin.z + "]");
         meshObj.transform.parent = chunkParent;
         meshObj.transform.position = chunkOrigin - new Vector3(size.x / 2, size.z / 2, size.z / 2);
@@ -156,21 +166,30 @@ public class TerrainPlacer : MonoBehaviour
         Mesh mesh = new Mesh();
 
         int vertIndex = 0;
+        int step = 0;
         for (int x = 0; x < chunkSize.x; x++)
         {
             for (int y = 0; y < chunkSize.y; y++)
             {
                 for (int z = 0; z < chunkSize.z; z++)
                 {
-                    int[] newEdgePoints = Table.GetEdgeTableRow(GetTableIndex(new int[] {
-                        vertexData[x + chunkOrigin.x, y+chunkOrigin.y, z + chunkOrigin.z],
-                        vertexData[x + chunkOrigin.x+1, y+chunkOrigin.y, z + chunkOrigin.z],
-                        vertexData[x + chunkOrigin.x+1, y+chunkOrigin.y, z + chunkOrigin.z+1],
-                        vertexData[x + chunkOrigin.x, y+chunkOrigin.y, z + chunkOrigin.z+1],
-                        vertexData[x + chunkOrigin.x, y+chunkOrigin.y+1, z + chunkOrigin.z],
-                        vertexData[x + chunkOrigin.x+1, y+chunkOrigin.y+1, z + chunkOrigin.z],
-                        vertexData[x + chunkOrigin.x+1, y+chunkOrigin.y+1, z + chunkOrigin.z+1],
-                        vertexData[x + chunkOrigin.x, y+chunkOrigin.y+1, z + chunkOrigin.z+1]
+                    step++;
+
+                    if (step == 100)
+                    {
+                        step = 0;
+                        yield return new WaitForEndOfFrame();
+                    }
+
+                    int[] newEdgePoints = Table.GetEdgeTableRow(GetTableIndex(new float[] {
+                        noise[x + chunkOrigin.x, y+chunkOrigin.y, z + chunkOrigin.z],
+                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y, z + chunkOrigin.z],
+                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y, z + chunkOrigin.z+1],
+                        noise[x + chunkOrigin.x, y+chunkOrigin.y, z + chunkOrigin.z+1],
+                        noise[x + chunkOrigin.x, y+chunkOrigin.y+1, z + chunkOrigin.z],
+                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y+1, z + chunkOrigin.z],
+                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y+1, z + chunkOrigin.z+1],
+                        noise[x + chunkOrigin.x, y+chunkOrigin.y+1, z + chunkOrigin.z+1]
                     }));
 
                     if (newEdgePoints.Length > 0)
@@ -179,7 +198,7 @@ public class TerrainPlacer : MonoBehaviour
 
                         for (int i = 0; i < newEdgePoints.Length; i++)
                         {
-                            AddVertex(ref meshVertices, newEdgePoints[i], cubePos, vertIndex);
+                            AddEdgeVertex(ref meshVertices, newEdgePoints[i], cubePos + chunkOrigin, chunkOrigin, vertIndex);
                             meshTriangles[vertIndex] = vertIndex;
                             vertIndex++;
                         }
@@ -188,6 +207,7 @@ public class TerrainPlacer : MonoBehaviour
             }
         }
 
+
         System.Array.Resize(ref meshVertices, vertIndex);
         System.Array.Resize(ref meshTriangles, vertIndex);
 
@@ -195,88 +215,106 @@ public class TerrainPlacer : MonoBehaviour
         if (meshVertices.Length == 0)
         {
             DestroyImmediate(meshObj);
-            return null;
         }
+        else
+        {
+            mesh.vertices = meshVertices;
+            mesh.triangles = meshTriangles;
+            mesh.RecalculateNormals();
 
-        mesh.vertices = meshVertices;
-        mesh.triangles = meshTriangles;
-        mesh.RecalculateNormals();
-
-        MeshRenderer mr = meshObj.AddComponent<MeshRenderer>();
-        mr.sharedMaterial = material;
-        meshFilters[meshIndex] = meshObj.AddComponent<MeshFilter>();
-        meshFilters[meshIndex].sharedMesh = mesh;
-        MeshCollider cldr = meshObj.AddComponent<MeshCollider>();
-        cldr.sharedMesh = mesh;
-
-        return mesh;
+            MeshRenderer mr = meshObj.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = material;
+            meshFilters[meshIndex] = meshObj.AddComponent<MeshFilter>();
+            meshFilters[meshIndex].sharedMesh = mesh;
+            MeshCollider cldr = meshObj.AddComponent<MeshCollider>();
+            cldr.sharedMesh = mesh;
+        }
     }
 
-    Vector3 AddVertex(ref Vector3[] vertices, int edgePoint, Vector3 origin, int vertIndex)
+    Vector3 AddEdgeVertex(ref Vector3[] vertices, int edgePoint, Vector3 origin, Vector3 chunkOrigin, int vertIndex)
     {
-        Vector3 newVertexPos = Vector3.zero;
+        Vector3Int p1 = new Vector3Int((int)origin.x, (int)origin.y, (int)origin.z);
+        Vector3Int p2 = new Vector3Int((int)origin.x, (int)origin.y, (int)origin.z);
 
         switch (edgePoint)
         {
             case 0:
-                newVertexPos = new Vector3(origin.x + 0.5f, origin.y, origin.z);
+                p2.x += 1;
                 break;
 
             case 1:
-                newVertexPos = new Vector3(origin.x + 1, origin.y, origin.z + 0.5f);
+                p1.x += 1;
+                p2 += new Vector3Int(1, 0, 1);
                 break;
 
             case 2:
-                newVertexPos = new Vector3(origin.x + 0.5f, origin.y, origin.z + 1);
+                p1 += new Vector3Int(1, 0, 1);
+                p2.z += 1;
                 break;
 
             case 3:
-                newVertexPos = new Vector3(origin.x, origin.y, origin.z + 0.5f);
+                p2.z += 1;
                 break;
 
             case 4:
-                newVertexPos = new Vector3(origin.x + 0.5f, origin.y + 1, origin.z);
+                p1.y += 1;
+                p2 += new Vector3Int(1, 1, 0);
                 break;
 
             case 5:
-                newVertexPos = new Vector3(origin.x + 1, origin.y + 1, origin.z + 0.5f);
+                p1 += new Vector3Int(1, 1, 0);
+                p2 += new Vector3Int(1, 1, 1);
                 break;
 
             case 6:
-                newVertexPos = new Vector3(origin.x + 0.5f, origin.y + 1, origin.z + 1);
+                p1 += new Vector3Int(1, 1, 1);
+                p2 += new Vector3Int(0, 1, 1);
                 break;
 
             case 7:
-                newVertexPos = new Vector3(origin.x, origin.y + 1, origin.z + 0.5f);
+                p1.y += 1;
+                p2 += new Vector3Int(0, 1, 1);
                 break;
 
             case 8:
-                newVertexPos = new Vector3(origin.x, origin.y + 0.5f, origin.z);
+                p2.y += 1;
                 break;
 
             case 9:
-                newVertexPos = new Vector3(origin.x + 1, origin.y + 0.5f, origin.z);
+                p1.x += 1;
+                p2 += new Vector3Int(1, 1, 0);
                 break;
 
             case 10:
-                newVertexPos = new Vector3(origin.x + 1, origin.y + 0.5f, origin.z + 1);
+                p1 += new Vector3Int(1, 0, 1);
+                p2 += new Vector3Int(1, 1, 1);
                 break;
 
             case 11:
-                newVertexPos = new Vector3(origin.x, origin.y + 0.5f, origin.z + 1);
+                p1.z += 1;
+                p2 += new Vector3Int(0, 1, 1);
                 break;
         }
 
-        vertices[vertIndex] = newVertexPos;
-        return newVertexPos;
+        Vector3 newEdgeVertexPos = LinearInterpolate(p1, p2) - chunkOrigin;
+
+        vertices[vertIndex] = newEdgeVertexPos;
+        return newEdgeVertexPos;
     }
 
-    int GetTableIndex(int[] vertices)
+    int GetTableIndex(float[] vertices)
     {
         string binary = "";
         for (int i = 7; i >= 0; i--)
         {
-            binary += vertices[i];
+            if (vertices[i] >= placeThreshold)
+            {
+                binary += 1;
+            }
+            else
+            {
+                binary += 0;
+            }
         }
 
         int tableIndex = System.Convert.ToInt32(binary, 2);
@@ -284,10 +322,28 @@ public class TerrainPlacer : MonoBehaviour
         return tableIndex;
     }
 
-    float Noise(float x, float y, float z)
+    float Noise(float x, float y, float z, float distanceFromCenter)
     {
         float noise = PerlinNoise3D.PerlinNoise(new Vector3(x, y, z) * noiseScale, offset);
-        return noise;
+        float influence = 1;
+
+        influence += Sigmoid(distanceFromCenter - coreRadius, placeThreshold);
+        influence -= Sigmoid(distanceFromCenter - planetRadius, -placeThreshold);
+
+        return Mathf.Clamp01(noise * influence);
+    }
+
+    float Sigmoid(float x, float a = 1)
+    {
+        return 1 / (1 + Mathf.Exp(a*x));
+    }
+
+    Vector3 LinearInterpolate(Vector3Int p1, Vector3Int p2)
+    {
+        float v1 = noise[p1.x, p1.y, p1.z];
+        float v2 = noise[p2. x, p2.y, p2.z];
+
+        return p1 + ((placeThreshold - v1) * ((Vector3)p2 - p1) / (v2 - v1));
     }
 
     public void ClearLog()
@@ -301,11 +357,11 @@ public class TerrainPlacer : MonoBehaviour
 
 public struct PlanetData
 {
-    public int[,,] terrainData;
+    public float[,,] terrainData;
     public float planetRadius;
     public float coreRadius;
 
-    public PlanetData(int[,,] vertexData, float planetRadius, float coreRadius)
+    public PlanetData(float[,,] vertexData, float planetRadius, float coreRadius)
     {
         terrainData = vertexData;
         this.planetRadius = planetRadius;

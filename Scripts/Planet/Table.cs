@@ -274,28 +274,4 @@ public class Table : MonoBehaviour
 
         return triTable[index];
     }
-
-
-    static int[][] faceTable = new int[6][]
-    {
-        new int[] { 3, 8, 7, 11 },
-        new int[] { 0, 1, 2, 3 },
-        new int[] { 0, 4, 8, 9 },
-        new int[] { 1, 5, 9, 10 },
-        new int[] { 4, 5, 6, 7 },
-        new int[] { 2, 6, 10, 11 }
-    };
-
-    public static bool OnFace(int index, int edgePoint)
-    {
-        for (int i = 0; i < faceTable[index].Length; i++)
-        {
-            if (faceTable[index][i] == edgePoint)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

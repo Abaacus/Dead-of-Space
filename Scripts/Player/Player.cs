@@ -24,6 +24,9 @@ public class Player : MonoBehaviour
     float speed = 0.5f;
 
     [SerializeField]
+    float angle;
+
+    [SerializeField]
     Transform cam;
     float verticalLookRotation;
 
@@ -34,22 +37,25 @@ public class Player : MonoBehaviour
     float jumpPower = 1f;
 
     public BaseGun gun;
-    bool frame2;
+
+    public bool lockCamera;
 
     void Start()
     {
         gb = new GravityBody(GetComponent<Rigidbody>(), mass);
         gun = GetComponentInChildren<BaseGun>();
-        frame2 = true;
     }
 
     void Update()
     {
-        gb.Spin(Input.GetAxis("Mouse X") * mouseSensitivityX);
+        if (!lockCamera)
+        {
+            gb.Spin(Input.GetAxis("Mouse X") * mouseSensitivityX);
 
-        verticalLookRotation += Input.GetAxis("Mouse Y") * mouseSensitivityY * Time.deltaTime;
-        verticalLookRotation = Mathf.Clamp(verticalLookRotation, -verticalClampAngle, verticalClampAngle);
-        cam.localEulerAngles = Vector3.left * verticalLookRotation;
+            verticalLookRotation += Input.GetAxis("Mouse Y") * mouseSensitivityY * Time.deltaTime;
+            verticalLookRotation = Mathf.Clamp(verticalLookRotation, -verticalClampAngle, verticalClampAngle);
+            cam.localEulerAngles = Vector3.left * verticalLookRotation;
+        }
 
         if (Input.GetButton("Jump"))
         {
@@ -58,17 +64,10 @@ public class Player : MonoBehaviour
 
         if (Input.GetButton("Fire1"))
         {
-            gun.FireGun(cam.transform.forward);
+            gun.FireGun(cam.transform.up);
+            Debug.Log(cam.transform.up);
         }
-    }
 
-    void FixedUpdate()
-    {
-        if (frame2)
-        {
-            gb.Orbit(new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized * speed);
-        }
-        
-        frame2 = !frame2;
+        gb.Orbit(new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized * speed);
     }
 }
