@@ -12,7 +12,7 @@ public class Shuttle : MonoBehaviour
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
-        gb = new GravityBody(rb);
+        gb = new GravityBody(rb, SpinType.axis);
     }
 
     private void Update()

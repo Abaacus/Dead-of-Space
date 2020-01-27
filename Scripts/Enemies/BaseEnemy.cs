@@ -7,24 +7,28 @@ enum EnemyState { passive, targeting, dead };
 [RequireComponent(typeof(Rigidbody))]
 public class BaseEnemy : MonoBehaviour
 {
-    public static PlanetData planetData;
-
-    Transform player;
+    [HideInInspector]
+    public TerrainPlacer terrainPlacer;
+    [HideInInspector]
+    public Transform player;
     EnemyState state;
     internal GravityBody gb;
 
     public float detectionRadius;
     public float rotSpeed = 45;
     public float moveSpeed = 10;
-    public float verticalSpeed = 1;
+    public float rateOfAscension = 1;
     Vector3 target;
+
+    public GameObject deathAffect;
 
     public void Start()
     {
+        terrainPlacer = TerrainPlacer.instance;
         player = Player.instance.transform;
     }
 
-    void FixedUpdate()
+    void Update()
     {
         UpdatePlayerDistance();
 
@@ -59,14 +63,21 @@ public class BaseEnemy : MonoBehaviour
     {
         // other code goes here
 
+        GravitySource.instance.RemoveGravityObject(gb);
+        Instantiate(deathAffect, transform.position, transform.rotation);
         Destroy(gameObject);
+    }
+
+    public void Hit()
+    {
+        state = EnemyState.dead;
     }
 
     void UpdatePlayerDistance()
     {
         if (Vector3.Distance(transform.position, player.position) <= detectionRadius)
         {
-            state = EnemyState.targeting;
+            //state = EnemyState.targeting;
             target = player.position;
         }
         else

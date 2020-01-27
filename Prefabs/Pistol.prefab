@@ -127,4 +127,4 @@ MonoBehaviour:
     type: 3}
   bulletSpawnPoint: {fileID: 2507308052967239696}
   bulletSpeed: 2
-  fireRate: 0.3
+  fireRate: 1

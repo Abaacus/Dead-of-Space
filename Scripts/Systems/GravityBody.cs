@@ -2,8 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+public enum SpinType { point, axis}
+
 public class GravityBody
 {
+    SpinType spinType;
     GravitySource gravitySource;
     Transform attractingPoint;
 
@@ -16,10 +19,17 @@ public class GravityBody
     float timeStep = 1;
     bool isWeightless = false;
 
+    float elevateAmount;
+    float smoothElevateVelocity;
+    const float elevateNeutralizer = -0.01f;
+
+    float spinAngle;
+    float smoothSpinVelocity;
+
     Vector3 moveAmount;
     Vector3 smoothMoveVelocity;
 
-    public GravityBody(Rigidbody rb, float mass = 1)
+    public GravityBody(Rigidbody rb, SpinType spinType = SpinType.axis, float mass = 1)
     {
         gravitySource = GravitySource.instance;
 
@@ -28,6 +38,7 @@ public class GravityBody
         rb.useGravity = false;
         rb.freezeRotation = true;
 
+        this.spinType = spinType;
         this.mass = mass;
         isWeightless = false;
 
@@ -38,7 +49,7 @@ public class GravityBody
         orbision = Orbision.Vector3ToOrbision(transform.position);
     }
 
-    public GravityBody(Rigidbody rb)
+    public GravityBody(Rigidbody rb, SpinType spinType = SpinType.axis)
     {
         gravitySource = GravitySource.instance;
 
@@ -47,6 +58,7 @@ public class GravityBody
         rb.useGravity = false;
         rb.freezeRotation = true;
 
+        this.spinType = spinType;
         mass = 1;
         isWeightless = true;
 
@@ -54,7 +66,7 @@ public class GravityBody
         attractingPoint = gravitySource.transform;
         gravitySource.AddGravityObject(this);
 
-        orbision = Orbision.Vector3ToOrbision(transform.position);
+        orbision = Orbision.Vector3ToOrbision(rb.position);
     }
 
     internal void Attract(float gravityStrength)
@@ -72,9 +84,9 @@ public class GravityBody
     {
         transform.rotation = Quaternion.FromToRotation(transform.up, orbision.localUp) * transform.rotation;
 
-        Debug.DrawRay(transform.position, orbision.localUp * 10, Color.green);
+        /*Debug.DrawRay(transform.position, orbision.localUp * 10, Color.green);
         Debug.DrawRay(transform.position, orbision.localRight * 10, Color.red);
-        Debug.DrawRay(transform.position, orbision.localForward * 10, Color.blue);
+        Debug.DrawRay(transform.position, orbision.localForward * 10, Color.blue);*/
     }
 
     Vector3 WeightedGravityNormal()
@@ -102,62 +114,44 @@ public class GravityBody
 
     public void Boost(float jumpPower)
     {
-        if (OnGround())
+        if (OnGround() && !isWeightless)
         {
             Debug.Log("Boosting");
+            AlignWithGravityNormal();
             rb.AddForce(transform.up * jumpPower / mass);
-            orbision = Orbision.Vector3ToOrbision(rb.position);
         }
     }
 
-    public void Orbit(Vector2 deltaMove)
+    public void Orbit(Vector2 deltaMove, float dampeningSpeed = 1)
     {
-        AlignWithGravityNormal();
-
-        /*Orbision newOrbision = new Orbision(orbision);
-        newOrbision.RotateAroundAxis(-transform.forward, deltaMove.x);
-        newOrbision.RotateAroundAxis(transform.right, deltaMove.y);
-        Debug.DrawLine(orbision.hOrigin, orbision.vector3Position, Color.magenta);
-        newOrbision -= orbision;
-        Debug.DrawLine(orbision.hOrigin, orbision.vector3Position, Color.magenta);
-        rb.MovePosition(rb.position + newOrbision.vector3Position);*/
-
-        moveAmount = Vector3.SmoothDamp(moveAmount, new Vector3(deltaMove.x, 0, deltaMove.y) * orbision.h, ref smoothMoveVelocity, .15f);
-        
+        float speed = deltaMove.magnitude;
+        deltaMove *= orbision.h;
+        moveAmount = Vector3.SmoothDamp(moveAmount, new Vector3(deltaMove.x, speed * elevateNeutralizer, deltaMove.y), ref smoothMoveVelocity, dampeningSpeed * Time.deltaTime);
     }
 
-    public void Orbit(float deltaX, float deltaZ)
+    public void Elevate(float deltaH, float dampeningSpeed = 1)
     {
-        AlignWithGravityNormal();
-
-        /*Orbision newOrbision = new Orbision(orbision);
-        newOrbision.RotateAroundAxis(-transform.forward, deltaX);
-        newOrbision.RotateAroundAxis(transform.right, deltaZ);
-        newOrbision -= orbision;
-
-        rb.MovePosition(rb.position + newOrbision.vector3Position);
-        orbision = Orbision.Vector3ToOrbision(rb.position);*/
-
-        moveAmount = Vector3.SmoothDamp(moveAmount, new Vector3(deltaX, 0, deltaZ) * orbision.h, ref smoothMoveVelocity, .15f);
+        elevateAmount = Mathf.SmoothDamp(elevateAmount, deltaH, ref smoothElevateVelocity, dampeningSpeed * Time.deltaTime);
     }
 
-    public void Elevate(float deltaH)
+    public void Spin(float angle, float dampeningSpeed = 1)
     {
-        AlignWithGravityNormal();
-
-        //rb.MovePosition(rb.position + orbision.localUp * deltaH * Time.fixedDeltaTime);
-        orbision = Orbision.Vector3ToOrbision(rb.position);
+        spinAngle = Mathf.SmoothDamp(spinAngle, angle, ref smoothSpinVelocity, dampeningSpeed * Time.deltaTime);
     }
 
-    public void Spin(float angle)
+    public void MoveBody()
     {
         AlignWithGravityNormal();
-        transform.RotateAround(orbision.hOrigin, orbision.localUp, angle * Time.deltaTime);
-    }
+        if (spinType == SpinType.axis)
+        {
+            transform.Rotate(orbision.localUp, spinAngle * Time.deltaTime);
+        }
+        else if (spinType == SpinType.point)
+        {
+            transform.RotateAround(orbision.hOrigin, orbision.localUp, spinAngle * Time.deltaTime);
+        }
 
-    public void Move()
-    {
-        rb.MovePosition(rb.position + (transform.TransformDirection(moveAmount) * Time.fixedDeltaTime));
+        rb.MovePosition(rb.position + transform.TransformDirection(moveAmount + (elevateAmount * orbision.localUp)) * Time.fixedDeltaTime);
         orbision = Orbision.Vector3ToOrbision(rb.position);
     }
 }

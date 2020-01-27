@@ -23,19 +23,17 @@ public class GravitySource : MonoBehaviour
 
     [SerializeField]
     float gravityStrength = 1f;
-
-    bool gameStarted;
-
+    public bool gravityEnabled;
     public float groundHitBuffer = 0.2f;
 
     private void FixedUpdate()
     {
-        if (gameStarted)
+        if (gravityEnabled)
         {
             foreach (GravityBody gb in gravityBodies)
             {
                 gb.Attract(-gravityStrength);
-                gb.Move();
+                gb.MoveBody();
             }
         }
     }

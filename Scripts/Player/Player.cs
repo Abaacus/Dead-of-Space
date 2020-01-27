@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 [RequireComponent(typeof(Rigidbody))]
 public class Player : MonoBehaviour
@@ -23,11 +24,7 @@ public class Player : MonoBehaviour
     [SerializeField]
     float speed = 0.5f;
 
-    [SerializeField]
-    float angle;
-
-    [SerializeField]
-    Transform cam;
+    public Transform cam;
     float verticalLookRotation;
 
     public GravityBody gb;
@@ -38,36 +35,46 @@ public class Player : MonoBehaviour
 
     public BaseGun gun;
 
-    public bool lockCamera;
+    public float crystalCount;
+    public TextMeshProUGUI crystalCountGUI;
+
+    public bool lockPlayer;
+
 
     void Start()
     {
-        gb = new GravityBody(GetComponent<Rigidbody>(), mass);
+        gb = new GravityBody(GetComponent<Rigidbody>(), SpinType.point, mass);
         gun = GetComponentInChildren<BaseGun>();
+        UpdateCrystalCounter();
     }
 
     void Update()
     {
-        if (!lockCamera)
+        if (!lockPlayer)
         {
-            gb.Spin(Input.GetAxis("Mouse X") * mouseSensitivityX);
+            gb.Spin(Input.GetAxis("Mouse X") * mouseSensitivityX, 0.1f);
 
             verticalLookRotation += Input.GetAxis("Mouse Y") * mouseSensitivityY * Time.deltaTime;
             verticalLookRotation = Mathf.Clamp(verticalLookRotation, -verticalClampAngle, verticalClampAngle);
             cam.localEulerAngles = Vector3.left * verticalLookRotation;
-        }
 
-        if (Input.GetButton("Jump"))
-        {
-            gb.Boost(jumpPower);
-        }
+            if (Input.GetButton("Jump"))
+            {
+                gb.Boost(jumpPower);
+            }
 
-        if (Input.GetButton("Fire1"))
-        {
-            gun.FireGun(cam.transform.up);
-            Debug.Log(cam.transform.up);
-        }
+            if (Input.GetButton("Fire1"))
+            {
+                gun.FireGun(cam.transform.forward);
+            }
 
-        gb.Orbit(new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized * speed);
+            gb.Orbit(new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical")).normalized * speed);
+        }
+    }
+
+    public void UpdateCrystalCounter(int crystalIncrease = 0)
+    {
+        crystalCount += crystalIncrease;
+        crystalCountGUI.text = "x" + crystalCount;
     }
 }

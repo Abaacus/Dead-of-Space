@@ -42,7 +42,7 @@ MeshFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6590758411072945881}
-  m_Mesh: {fileID: -5495902117074765545, guid: c13a9568eaca66e4c977e5ad5b731aa0, type: 3}
+  m_Mesh: {fileID: -8020094893092590733, guid: c13a9568eaca66e4c977e5ad5b731aa0, type: 3}
 --- !u!23 &6590758411072945886
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -94,8 +94,8 @@ SphereCollider:
   m_IsTrigger: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
+  m_Radius: 0.75
+  m_Center: {x: 0, y: 0.15, z: 0.075}
 --- !u!54 &6590758411072945884
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -124,10 +124,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e9e267457b714d4a860eaae19e010fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  terrainPlacer: {fileID: 0}
+  player: {fileID: 0}
   detectionRadius: 20
   rotSpeed: 45
-  moveSpeed: 10
-  verticalSpeed: 1
-  minHeight: 0
+  moveSpeed: 5
+  rateOfAscension: 1
+  deathAffect: {fileID: 3909530706215115465, guid: 46beda1e1e6f3dc4d93b65b76dc4d9b3,
+    type: 3}
+  minHeight: 60
+  heightOffset: 5
+  bobStrength: 4
   boundsRadius: 8
   veerStrength: 10
+  dropChance: 1
+  crystal: {fileID: 6488723954046374044, guid: f5b08b68776da884d827fc78285dbabd, type: 3}

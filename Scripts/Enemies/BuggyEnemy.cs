@@ -5,50 +5,47 @@ using UnityEngine;
 public class BuggyEnemy : BaseEnemy
 {
     public float minHeight;
-    static float heightOffset = 5f;
+    public float heightOffset;
+    public float bobStrength;
     float targetHeight;
 
     public float boundsRadius = 8f;
     public float veerStrength = 10f;
 
+    [Range(0, 1)]
+    public float dropChance;
+    public GameObject crystal;
+
     new void Start()
     {
         base.Start();
-        gb = new GravityBody(GetComponent<Rigidbody>());
-        targetHeight = Random.Range(planetData.coreRadius + minHeight, planetData.planetRadius + heightOffset);
+        gb = new GravityBody(GetComponent<Rigidbody>(), SpinType.axis);
+        targetHeight = Random.Range(terrainPlacer.coreRadius + minHeight, terrainPlacer.planetRadius + heightOffset);
     }
 
     public override void Wander()
     {
-        if (Mathf.Abs(targetHeight - gb.orbision.h) <= 0.2f)
+        /*if (Mathf.Abs(targetHeight - gb.orbision.h) <= 0.2f)
         {
-            targetHeight = Random.Range(planetData.coreRadius + heightOffset, planetData.planetRadius + heightOffset);
+            targetHeight = Random.Range(terrainPlacer.coreRadius + heightOffset, terrainPlacer.planetRadius + heightOffset);
         }
 
-        float deltaY = (targetHeight - gb.orbision.h) * verticalSpeed;
-        if (deltaY <= 2f)
-        {
-            deltaY += BobNoise(Time.fixedTime);
-        }
-        gb.Spin(BobNoise(2 * Time.fixedTime) * rotSpeed);
+        float deltaY = (targetHeight - gb.orbision.h) * rateOfAscension;
 
-        gb.Elevate(deltaY);
-        gb.Orbit(0, moveSpeed);
+        gb.Elevate(deltaY, moveSpeed);
+        gb.Orbit(Vector2.up * moveSpeed * Time.fixedDeltaTime);
+        gb.Spin(BobNoise(Time.fixedTime, 10) * rotSpeed, moveSpeed);
 
-        if (true)//IsHeadingForCollision())
+        if (IsHeadingForCollision())
         {
+            Debug.Log("Collision Course");
             Vector3 collisionAvoidDir = ObstacleRays();
-            Debug.DrawRay(transform.position, collisionAvoidDir, Color.red);
-            Vector3 planetDirection = -gb.orbision.localUp;
-            Debug.DrawRay(transform.position, new Vector2(planetDirection.x, planetDirection.z), Color.green);
 
             //gravityBody.Elevate(planetDirection.y);
             //gravityBody.Spin()
 
             //planetDirection 
-        }
-
-        
+        }*/
     }
 
     public override void Target()
@@ -58,15 +55,18 @@ public class BuggyEnemy : BaseEnemy
 
     public override void Dead()
     {
+        if (Random.Range(0, 1f) < dropChance)
+        {
+            Instantiate(crystal, transform.position, transform.rotation);
+        }
 
         base.Dead();
     }
 
-    float BobNoise(float fixedX)
+    float BobNoise(float x, float strength = 1, float scale = 1)
     {
-        float noise = Mathf.Sin(fixedX);
-        noise += Mathf.Sin(2 * fixedX - 1);
-        return noise;
+        float noise = Mathf.Sin(scale * x);
+        return strength * noise;
     }
 
     Vector3 ObstacleRays()
@@ -101,7 +101,7 @@ public class BuggyEnemy : BaseEnemy
     new void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;
-        Gizmos.DrawSphere(Vector3.zero, minHeight + planetData.coreRadius);
+        Gizmos.DrawWireSphere(transform.position + (transform.forward * 2), boundsRadius);
     }
 }
 

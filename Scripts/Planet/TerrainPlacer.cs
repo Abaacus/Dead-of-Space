@@ -6,14 +6,28 @@ using System.Reflection;
 
 public class TerrainPlacer : MonoBehaviour
 {
-    [SerializeField]
+    public static TerrainPlacer instance;
+    private void Awake()
+    {
+        if (instance != null)
+        {
+            Debug.LogWarning("Multiple instances of " + this + " found");
+        }
+
+        instance = this;
+    }
+
     public bool autoUpdate;
+    public int maxStepCount = 100;
+
+    public Transform chunkParent;
 
     [SerializeField]
     public Vector3Int size = Vector3Int.one * 20;
     public Vector3Int chunkSize = Vector3Int.one * 10;
     [SerializeField]
     public Vector3 offset;
+    Vector3 planetOrigin;
 
     public float planetRadius;
     public float coreRadius;
@@ -21,52 +35,31 @@ public class TerrainPlacer : MonoBehaviour
     [Range(0, 1)]
     public float placeThreshold = 0.5f;
     public float noiseScale = 0.1f;
-    float[,,] noise;
 
-    [SerializeField]
-    Transform chunkParent;
-
-    public int resolution = 1;
-    Vector3Int scaledSize;
-
-    [SerializeField]
-    Material material;
+    public Material material;
     [SerializeField]
     public MeshFilter[] meshFilters;
 
-    bool vertexDataCreated;
     bool meshCreated;
 
-    private void Awake()
-    {
-        SaveVertexData();
-    }
-
-    public void GenerateNewTerrain()
+    public Coroutine GenerateNewTerrain()
     {
         StopAllCoroutines();
         ClearTerrain();
-        StartCoroutine(GenerateTerrain());
+        return StartCoroutine(GenerateTerrain());
     }
 
     IEnumerator GenerateTerrain()
     {
         float startTime = Time.realtimeSinceStartup;
 
-        transform.localScale = Vector3.one / resolution;
-
-        offset = new Vector3
+        /*offset = new Vector3
         {
             x = Random.Range(0, 1000f),
             y = Random.Range(0, 1000f),
             z = Random.Range(0, 1000f)
-        };
+        };*/
 
-        StartCoroutine(CreateVertexData());
-        yield return new WaitForEndOfFrame();
-        Debug.Log("Vertex Data Created in " + (Time.realtimeSinceStartup - startTime) + " seconds.");
-        SaveVertexData(noise);
-        yield return new WaitUntil(() => vertexDataCreated);
         StartCoroutine(InitializeMeshData());
         yield return new WaitForEndOfFrame();
         yield return new WaitUntil(() => meshCreated);
@@ -87,48 +80,20 @@ public class TerrainPlacer : MonoBehaviour
 
         meshFilters = new MeshFilter[0];
 
-        ClearLog();
-    }
-
-    public void SaveVertexData()
-    {
-        StartCoroutine(CreateVertexData());
-        BaseEnemy.planetData = new PlanetData(noise, planetRadius, coreRadius);
-        Debug.Log("Planet data saved");
-    }
-
-    public void SaveVertexData(float[,,] vertexData)
-    {
-        BaseEnemy.planetData = new PlanetData(vertexData, planetRadius, coreRadius);
-        Debug.Log("Planet data saved");
-    }
-
-    IEnumerator CreateVertexData()
-    {
-        vertexDataCreated = false;
-        scaledSize = size * resolution;
-
-        Vector3 planetOrigin = new Vector3(scaledSize.x, scaledSize.y, scaledSize.z) / 2;
-        noise = new float[scaledSize.x + 1, scaledSize.y + 1, scaledSize.z + 1];
-        for (int x = 0; x <= scaledSize.x; x++)
+        for (int i = chunkParent.childCount - 1; i >= 0; i--)
         {
-            for (int y = 0; y <= scaledSize.y; y++)
-            {
-                for (int z = 0; z <= scaledSize.z; z++)
-                {
-                    noise[x, y, z] = Noise(x, y, z, Vector3.Distance(new Vector3(x, y, z), planetOrigin));
-                }
-            }
+            Destroy(chunkParent.GetChild(i).gameObject);
         }
 
-        yield return new WaitForEndOfFrame();
-        vertexDataCreated = true;
+        //ClearLog();
     }
 
     IEnumerator InitializeMeshData()
     {
+        planetOrigin = new Vector3(size.x / 2, size.y / 2, size.z / 2);
+        Vector3Int numChunks = new Vector3Int(Mathf.CeilToInt(size.x / chunkSize.x), Mathf.CeilToInt(size.y / chunkSize.y), Mathf.CeilToInt(size.z / chunkSize.z));
+
         meshCreated = false;
-        Vector3Int numChunks = new Vector3Int(Mathf.CeilToInt(scaledSize.x / chunkSize.x), Mathf.CeilToInt(scaledSize.y / chunkSize.y), Mathf.CeilToInt(scaledSize.z / chunkSize.z));
         meshFilters = new MeshFilter[numChunks.x * numChunks.y * numChunks.z];
 
         int meshIndex = -1;
@@ -151,7 +116,7 @@ public class TerrainPlacer : MonoBehaviour
             }
         }
 
-        
+
         meshCreated = true;
     }
 
@@ -175,21 +140,21 @@ public class TerrainPlacer : MonoBehaviour
                 {
                     step++;
 
-                    if (step == 100)
+                    if (step >= maxStepCount)
                     {
                         step = 0;
                         yield return new WaitForEndOfFrame();
                     }
 
                     int[] newEdgePoints = Table.GetEdgeTableRow(GetTableIndex(new float[] {
-                        noise[x + chunkOrigin.x, y+chunkOrigin.y, z + chunkOrigin.z],
-                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y, z + chunkOrigin.z],
-                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y, z + chunkOrigin.z+1],
-                        noise[x + chunkOrigin.x, y+chunkOrigin.y, z + chunkOrigin.z+1],
-                        noise[x + chunkOrigin.x, y+chunkOrigin.y+1, z + chunkOrigin.z],
-                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y+1, z + chunkOrigin.z],
-                        noise[x + chunkOrigin.x+1, y+chunkOrigin.y+1, z + chunkOrigin.z+1],
-                        noise[x + chunkOrigin.x, y+chunkOrigin.y+1, z + chunkOrigin.z+1]
+                        Noise(x + chunkOrigin.x, y + chunkOrigin.y, z + chunkOrigin.z),
+                        Noise(x + chunkOrigin.x + 1, y + chunkOrigin.y, z + chunkOrigin.z),
+                        Noise(x + chunkOrigin.x + 1, y + chunkOrigin.y, z + chunkOrigin.z+1),
+                        Noise(x + chunkOrigin.x, y + chunkOrigin.y, z + chunkOrigin.z+1),
+                        Noise(x + chunkOrigin.x, y + chunkOrigin.y + 1, z + chunkOrigin.z),
+                        Noise(x + chunkOrigin.x + 1, y + chunkOrigin.y + 1, z + chunkOrigin.z),
+                        Noise(x + chunkOrigin.x + 1, y + chunkOrigin.y + 1, z + chunkOrigin.z+1),
+                        Noise(x + chunkOrigin.x, y + chunkOrigin.y + 1, z + chunkOrigin.z+1)
                     }));
 
                     if (newEdgePoints.Length > 0)
@@ -322,8 +287,9 @@ public class TerrainPlacer : MonoBehaviour
         return tableIndex;
     }
 
-    float Noise(float x, float y, float z, float distanceFromCenter)
+    float Noise(float x, float y, float z)
     {
+        float distanceFromCenter = Vector3.Distance(new Vector3(x, y, z), planetOrigin);
         float noise = PerlinNoise3D.PerlinNoise(new Vector3(x, y, z) * noiseScale, offset);
         float influence = 1;
 
@@ -333,38 +299,41 @@ public class TerrainPlacer : MonoBehaviour
         return Mathf.Clamp01(noise * influence);
     }
 
+    float Noise(Vector3 point)
+    {
+        float distanceFromCenter = Vector3.Distance(point, planetOrigin);
+        float noise = PerlinNoise3D.PerlinNoise(point * noiseScale, offset);
+        float influence = 1;
+
+        influence += Sigmoid(distanceFromCenter - coreRadius, placeThreshold);
+        influence -= Sigmoid(distanceFromCenter - planetRadius, -placeThreshold);
+
+        return Mathf.Clamp01(noise * influence);
+    }
+
+    public bool IsEmptyPoint(Vector3 point)
+    {
+        return Noise(point) > placeThreshold;
+    }
+
     float Sigmoid(float x, float a = 1)
     {
-        return 1 / (1 + Mathf.Exp(a*x));
+        return 1 / (1 + Mathf.Exp(a * x));
     }
 
     Vector3 LinearInterpolate(Vector3Int p1, Vector3Int p2)
     {
-        float v1 = noise[p1.x, p1.y, p1.z];
-        float v2 = noise[p2. x, p2.y, p2.z];
+        float v1 = Noise(p1.x, p1.y, p1.z);
+        float v2 = Noise(p2.x, p2.y, p2.z);
 
         return p1 + ((placeThreshold - v1) * ((Vector3)p2 - p1) / (v2 - v1));
     }
 
-    public void ClearLog()
+    /*public void ClearLog()
     {
         Assembly assembly = Assembly.GetAssembly(typeof(UnityEditor.Editor));
         System.Type type = assembly.GetType("UnityEditor.LogEntries");
         MethodInfo method = type.GetMethod("Clear");
         method.Invoke(new object(), null);
-    }
-}
-
-public struct PlanetData
-{
-    public float[,,] terrainData;
-    public float planetRadius;
-    public float coreRadius;
-
-    public PlanetData(float[,,] vertexData, float planetRadius, float coreRadius)
-    {
-        terrainData = vertexData;
-        this.planetRadius = planetRadius;
-        this.coreRadius = coreRadius;
-    }
+    }*/
 }

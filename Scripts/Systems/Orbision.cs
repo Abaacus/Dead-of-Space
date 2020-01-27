@@ -137,6 +137,18 @@ public class Orbision
 
     #region Static Methods
 
+    public static float CalculateDeltaH(Vector3 axis, Vector3 deltaMove)
+    {
+        axis.Normalize();
+        deltaMove.Normalize();
+
+        Vector3 rotAxis = Vector3.Cross(Vector3.right, axis);
+        float rotAngle = Mathf.Cos(Vector3.Dot(Vector3.right, axis));
+
+        Vector2 rotatedPoint = Quaternion.AngleAxis(rotAngle, rotAxis) * deltaMove;
+        return rotatedPoint.y;
+    }
+
     public static Orbision Vector3ToOrbision(Vector3 vector3, int originIndex = 0)
     {
         Vector3 dirToPoint = (vector3 - hOrigins[originIndex]).normalized;
